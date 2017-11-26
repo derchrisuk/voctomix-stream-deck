@@ -109,18 +109,14 @@ def on_video_status(video_a, video_b):
        ico_b = StreamDeck.Icon.prep('video_grabber', 1) 
     logging.info('Current mode: %s %s', current_video_a, current_video_b)
     if(int(current_video_a) == int(button_a)) and (int(current_video_b) == int(button_b)):
-        print('SAME')
         return
     elif(current_video_a == 0) and (current_video_b == 0):
-        print('NOT SET')
         StreamDeck.display_icon(int(button_a), StreamDeck.Icon.text(str(video_a), ico=ico_a, col='00ff00', size=size_a, position=position_a))
         StreamDeck.display_icon(int(button_b), StreamDeck.Icon.text(str(video_b), ico=ico_b, col='00ff00', size=size_b, position=position_b))
     else:
         if(int(current_video_a) == int(button_a)):
-            print('SAME A')
             pass
         else:
-            print('NEW A')
             try:
                 button_a_old = Config.get('icons', str(current_video_a))
             except:
@@ -130,10 +126,8 @@ def on_video_status(video_a, video_b):
             StreamDeck.display_icon(int(button_a), StreamDeck.Icon.text(str(video_a), ico=ico_a, col='00ff00', size=size_a, position=position_a))   
 
         if(int(current_video_b) == int(button_b)):
-            print('SAME B')
             pass
         else:
-            print('NEW B')
             try:
                 button_b_old = Config.get('icons', str(current_video_b))
             except:
@@ -142,16 +136,6 @@ def on_video_status(video_a, video_b):
             StreamDeck.display_icon(int(current_video_b), StreamDeck.Icon.prep(button_b_old.split(',')[2], 1))
             StreamDeck.display_icon(int(button_b), StreamDeck.Icon.text(str(video_b), ico=ico_b, col='00ff00', size=size_b, position=position_b))
 
-        #try:
-        #    button_a_old = Config.get('icons', str(current_video_a))
-        #    button_b_old = Config.get('icons', str(current_video_b))
-        #except:
-        #    logging.info('Button not recognized')
-
-        #StreamDeck.display_icon(int(current_video_a), StreamDeck.Icon.prep(button_a_old.split(',')[2], 1))
-        #StreamDeck.display_icon(int(current_video_b), StreamDeck.Icon.prep(button_b_old.split(',')[2], 1)) 
-        #StreamDeck.display_icon(int(button_a), StreamDeck.Icon.text(str(video_a), ico=ico_a, col='00ff00', size=size_a, position=position_a))
-        #StreamDeck.display_icon(int(button_b), StreamDeck.Icon.text(str(video_b), ico=ico_b, col='00ff00', size=size_b, position=position_b))
     current_video_a = button_a
     current_video_b = button_b
 

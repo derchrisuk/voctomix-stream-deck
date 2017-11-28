@@ -1,5 +1,7 @@
 # voctomix-stream-deck
 
+Modified from: https://github.com/cMadan/ElGateau
+
 Requires:
 
 ```

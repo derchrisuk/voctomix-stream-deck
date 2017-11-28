@@ -9,4 +9,6 @@ pip3 install -r requirements.txt
 
 Run:
 
+```
 ./voctopanel.py -vv -t
+```

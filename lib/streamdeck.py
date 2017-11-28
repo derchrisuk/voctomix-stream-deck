@@ -2,7 +2,6 @@
 
 import sys
 import os
-import time
 import numpy as np
 
 import hid
@@ -230,26 +229,16 @@ class StreamDeck(object):
             # but really should be a solid()
             self.display_status['ico'][k] = '_'
 
-        # have an internal variable for dev_mode,
-        # which allows for simulating the device display and buttons
-        self.dev_mode = dev_mode
-        if self.dev_mode:
-            self.dev_display_init()
-        elif not self.dev_mode:
-            self.display_state = 'display_state is only maintained if in developer mode'
-
-        # only try to connect to device if not in developer mode!
-        if not dev_mode:
-            try:
-                self.device = hid.device(HID_VENDOR, HID_PRODUCT)
-                self.device.open(HID_VENDOR, HID_PRODUCT)
-            except:
-                print("No device found.")
-                sys.exit(0)
-            # send a reset command,
-            # otherwise display may have icons from a previous instance
-            self.reset()
-
+        # try to connect to device
+        try:
+            self.device = hid.device(HID_VENDOR, HID_PRODUCT)
+            self.device.open(HID_VENDOR, HID_PRODUCT)
+        except:
+            print("No device found.")
+            sys.exit(0)
+        # send a reset command,
+        # otherwise display may have icons from a previous instance
+        self.reset()
 
     def __enter__(self):
         return self
@@ -264,10 +253,7 @@ class StreamDeck(object):
         """
         Send reset command.
         """
-        if not self.dev_mode:
-            self.device.send_feature_report(RESET_DATA)
-        elif self.dev_mode:
-            self.display_state = self.display_state_init
+        self.device.send_feature_report(RESET_DATA)
 
     def set_brightness(self, bright):
         """
@@ -278,9 +264,8 @@ class StreamDeck(object):
         bright : int, 0-100
             Brightness value to set LCD display to.
         """
-        if not self.dev_mode:
-            BRIGHTNESS_DATA[5] = bright
-            self.device.send_feature_report(BRIGHTNESS_DATA)
+        BRIGHTNESS_DATA[5] = bright
+        self.device.send_feature_report(BRIGHTNESS_DATA)
 
     def key_remap(self, key):
         """
@@ -352,19 +337,13 @@ class StreamDeck(object):
         header[5] = key
         msg = header + pixels[range(0,
                                     NUM_PAGE1_PIXELS*3)].astype(int).tolist()
-        if not self.dev_mode:
-            self.device.write(msg)
-        elif self.dev_mode:
-            self.display_state = msg
+        self.device.write(msg)
 
         header = HEADER_PAGE2
         header[5] = key
         msg = header + pixels[range((NUM_PAGE1_PIXELS*3),
                                     NUM_TOTAL_PIXELS*3)].astype(int).tolist()
-        if not self.dev_mode:
-            self.device.write(msg)
-        elif self.dev_mode:
-            self.display_state = msg
+        self.device.write(msg)
 
     def display_clear(self, keys, rc=False):
         """
@@ -384,7 +363,7 @@ class StreamDeck(object):
             # list(range) works, but is slow
             # let's be more responsive
             self.reset()
-            # reset works with device and dev_mode
+            # reset works with device
             self.display_clear(1)
             keys = list(range(1,16))
             for k in keys:
@@ -410,7 +389,7 @@ class StreamDeck(object):
         Updates device key displays as well as
         internal representation of device key displays (display_status).
 
-        Pushes icon data to the device (or developer display).
+        Pushes icon data to the device. 
 
         Parameters
         ----------
@@ -435,10 +414,7 @@ class StreamDeck(object):
         # if not, will update display_status, but not actual device/display_state
         if display:
             # push to device
-            if not self.dev_mode:
-                self.display_icon(key, icon, remap=False)  # already remapped!
-            elif self.dev_mode:
-                self.dev_display_icon(key, icon, remap=False)
+            self.display_icon(key, icon, remap=False)  # already remapped!
 
     ########################################
     #
@@ -461,55 +437,21 @@ class StreamDeck(object):
         Returns
         ----------
         key : int, Key number on device (1-15)
-        time  : tuple, Unix time of key [0] button press and [1] button release
         """
-        if not self.dev_mode:
-            # wait for button press
-            state = self.device.read(NUM_KEYS+1)
-            key = np.where(np.array(state) == 1)
-            key = int(key[0][1])
-            if remap:
-                key = self.key_remap(key)
+        # wait for button press
+        state = self.device.read(NUM_KEYS+1)
+        key = np.where(np.array(state) == 1)
+        key = int(key[0][1])
+        if remap:
+            key = self.key_remap(key)
 
-            # wait for release
-            state = self.device.read(NUM_KEYS+1)
-            if len(np.where(np.array(state) == 1)) > 1:
-                # no keys currently pressed
-                raise ValueError('Unexpected getch state.')
+        # wait for release
+        state = self.device.read(NUM_KEYS+1)
+        if len(np.where(np.array(state) == 1)) > 1:
+            # no keys currently pressed
+            raise ValueError('Unexpected getch state.')
 
-            return (key)
-
-    def button_getch_time(self, remap=True, timeout=0):
-        """
-        Detect button presses for the keys on the device.
-
-        Parameters
-        ----------
-        remap : boolean, use the remapping or not
-        timeout : int, How many ms to wait for device. Optional.
-
-        Returns
-        ----------
-        key : int, Key number on device (1-15)
-        time  : tuple, Unix time of key [0] button press and [1] button release
-        """
-        if not self.dev_mode:
-            # wait for button press
-            state = self.device.read(NUM_KEYS+1)
-            key = np.where(np.array(state) == 1)
-            key = int(key[0][1])
-            if remap:
-                key = self.key_remap(key)
-            time_press = time.time()
-
-            # wait for release
-            state = self.device.read(NUM_KEYS+1)
-            if len(np.where(np.array(state) == 1)) > 1:
-                # no keys currently pressed
-                raise ValueError('Unexpected getch state.')
-            time_release = time.time()
-
-            return (key, (time_press, time_release))
+        return (key)
 
     def button_empty(self, timeout=5):
         """
@@ -524,50 +466,6 @@ class StreamDeck(object):
         while len(state) > 0:
             # hid.device.read has a timeount parameter!!
             state = self.device.read(NUM_KEYS+1, timeout_ms=timeout)
-
-    def button_listen_key_time(self, keys, rc=False):
-        """
-        Listen for specified key to be pressed.
-
-        Parameters
-        ----------
-        keys : int or list of ints, Key(s) to listen for
-            E.g., (1,4,12)
-
-        rc : boolean, Use the r,c (row,column) notation or not
-            If rc=True, list of keys must be lists of tuples
-            E.g., ((1,1),(1,4),(3,2))
-
-        Returns
-        ----------
-        button : int, Key detected (1-15)
-            If rc=True, will return tuple in same format
-        response_time : float, Time between listen initiated and button press
-        """
-        # empty device buffer
-        self.button_empty()
-        # get time for starting to listen
-        time_start = time.time()
-        # initiate button with 0, since no presses just yet
-        button = 0
-
-        # listen
-        # only accepts certain key responses
-        if not rc:
-            if isinstance(keys, int):
-                keys = (keys,)
-            while button not in keys:
-                button, button_time = self.button_getch()
-
-        elif rc:
-            # not implemented yet
-            print('Not implemented yet')
-
-        # only output the button press time
-        response_time = button_time[0]-time_start
-
-        return (button, response_time)
-
 
     def button_listen_key(self, keys, rc=False):
         """
@@ -586,7 +484,6 @@ class StreamDeck(object):
         ----------
         button : int, Key detected (1-15)
             If rc=True, will return tuple in same format
-        response_time : float, Time between listen initiated and button press
         """
         # empty device buffer
         self.button_empty()
@@ -618,7 +515,6 @@ class StreamDeck(object):
         Returns
         ----------
         key_list : list, keys pressed
-        rt_list : list, time between listen initiated and each press
         """
         # empty device buffer
         self.button_empty()
@@ -628,73 +524,13 @@ class StreamDeck(object):
         count_i = 0
         # define the variable where we'll keep our list
         key_list = []
-        rt_list = []
 
         # listen
         # stop after 'count' presses
         while count_i < count:
-            button, button_time = self.button_getch()
+            button = self.button_getch()
             key_list.append(button)
-            rt_list.append(button_time[0]-time_start)
             count_i += 1
 
-        return (key_list, rt_list)
+        return (key_list)
 
-    ########################################
-    #
-    # Developer mode functions
-    #
-    # dev_display_init, dev_display_update
-    #
-    ########################################
-
-    def dev_display_init(self):
-        """
-        Low-level function not intended to be called directly.
-
-        Generate the initial display_state image.
-        Only works if in developer mode.
-        """
-        # make single blank key
-        ico = Image.new("RGBA", ICON_SIZE, (0, 0, 0, 255))
-        # pad with white border
-        pad = 2
-        padded_size = ico.size[0]+pad, ico.size[1]+pad
-        padded_im = Image.new("RGBA", padded_size, (255, 255, 255, 255))
-        padded_im.paste(ico, (int((padded_size[0]-ico.size[0])/2),
-                              int((padded_size[1]-ico.size[1])/2)))
-        ico = padded_im
-        # pad with very dark gray border (space between icons), but not quite black
-        # border can help us detect that click is on actual key, not border
-        pad = 6
-        padded_size = ico.size[0]+pad, ico.size[1]+pad
-        padded_im = Image.new("RGBA", padded_size, (1, 1, 1, 255))
-        padded_im.paste(ico, (int((padded_size[0]-ico.size[0])/2),
-                              int((padded_size[1]-ico.size[1])/2)))
-        ico = padded_im
-
-        # concatenate array of icons
-        display_state = Image.new('RGB', (ico.size[0]*NUM_KEYS_ROW,
-                                          ico.size[1]*int(NUM_KEYS/NUM_KEYS_ROW)))
-        for r in range(0,int(NUM_KEYS/NUM_KEYS_ROW)):
-            for c in range(0,NUM_KEYS_ROW):
-                display_state.paste(ico,(ico.size[0]*c,ico.size[1]*r))
-
-        # pass back to self
-        self.display_state = display_state
-        # also store blank display_state
-        self.display_state_init = display_state
-
-    def dev_display_icon(self, key, icon, remap=True):
-        """
-        Low-level function not intended to be called directly.
-
-        Update the current display state.
-        Analagous to display_icon.
-        """
-        ico = icon['ico']
-        if remap:
-            key = self.key_remap(key)
-        r = int(np.floor((key-1)/NUM_KEYS_ROW))
-        c = int(np.mod(NUM_KEYS_ROW-key, NUM_KEYS_ROW))
-        self.display_state.paste(ico,((ico.size[0]+8)*c+4,(ico.size[1]+8)*r+4))

@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
+import logging
 import sys
 import os
 import numpy as np
 
 import hid
 from PIL import Image, ImageDraw, ImageFont
+
+log = logging.getLogger('StreamDeck')
 
 HID_VENDOR = 4057
 HID_PRODUCT = 96
@@ -31,6 +34,7 @@ HEADER_PAGE2 = [2, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
 def hex2rgb(col):
+    global log
     """
     Convert from hex color string to RGB tuple.
 
@@ -55,6 +59,7 @@ def hex2rgb(col):
     return rgb
 
 class StreamDeck(object):
+    global log
     """
     StreamDeck:
     A Framework for Using the Elgato Stream Deck
@@ -247,6 +252,7 @@ class StreamDeck(object):
         """
         Close connection to Elgato Stream Deck device.
         """
+        self.reset()
         self.device.close()
 
     def reset(self):
